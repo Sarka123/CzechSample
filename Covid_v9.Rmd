@@ -6,6 +6,7 @@ bibliography: bibliography.bib
 output:
   html_document: 
     theme: readable
+    toc: true
 ---
 
 ```{r setup, include=FALSE}
@@ -68,7 +69,7 @@ In order to comply with the principles of Open Science, we intend to split our a
 +-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------+------------------------------------------------------------------------------------------------------+
 | H11: Adequate level of public information about Covid-19 transmission and precautionary measures to prevent its spread (hand washing and mask wearing) is associated with **lower** levels of depression. | q20, 34_02, 34_07          | [@Wang2020; @Wang2020b]                                                                              |
 +-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------+------------------------------------------------------------------------------------------------------+
-| H12: Economic impact on family                                                                                                                                                                            | q36                        | @Meltzer2009                                                                                         |
+| H12: Economic distress is associated with **higher** levels of depression.                                                                                                                                | q36                        | @Meltzer2009                                                                                         |
 +-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------+------------------------------------------------------------------------------------------------------+
 | H13: In addition to H6, we hypothesize an existence of a causal pathway leading from **social media exposure** to **depression**, which is mediated by **anxiety** and moderated by **age**.              | q02, q18_02, anxiety_index | [@Bendau2020; @Rasmussen2020; @Wheaton2021; @Vannucci2017; @Mertens2020]                             |
 +-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------+------------------------------------------------------------------------------------------------------+
@@ -116,6 +117,10 @@ data <- data %>%
         mutate(q03 = haven::as_factor(q03)) %>%
         mutate(q04 = haven::as_factor(q04)) %>%
         mutate(q11 = haven::as_factor(q11)) %>%
+        mutate(q20 = haven::as_factor(q20)) %>%
+        mutate(q34_02 = haven::as_factor(q34_02)) %>%
+        mutate(q34_07 = haven::as_factor(q34_07)) %>%
+        mutate(q36 = haven::as_factor(q36)) %>%
         mutate(q38 = haven::as_factor(q38)) %>%
         mutate(q40 = haven::as_factor(q40)) %>%
         mutate(q42 = haven::as_factor(q42)) %>%
@@ -144,6 +149,12 @@ levels(data$q11) <- list(unfin_element = "Nedokončené základní",
                          undergrad = "Vysokoškolské (bakalářský stupeň)", 
                          postgrad = "Vysokoškolské (magisterské, doktorské nebo vyšší)")
 
+levels(data$q20) <- list(yes = "Ano", no = "Ne", do_not_know = "Nevím")
+levels(data$q34_02) <- list(yes = "ano", no = "ne")
+levels(data$q34_07) <- list(yes = "ano", no = "ne")
+levels(data$q36) <- list(limited = "Vůbec žádný nebo jen nepatrný", serious = "Ano, celkem významný", very_serious = "Ano, velmi vážný")
+
+
 levels(data$q38) <- list(yes = "Ano", no = "Ne")
 levels(data$q40) <- list(yes = "Ano", no = "Ne")
 levels(data$q42) <- list(yes = "Ano", no = "Ne")
@@ -168,6 +179,10 @@ data <- data %>%
         rename(q04_children = q04) %>%
         rename(q11_education = q11) %>%
         rename(q18_02_soc_media_info = q18_02) %>%
+        rename(q20_public_info = q20) %>%
+        rename(q34_02_face_mask = q34_02) %>%
+        rename(q34_07_hand_washing = q34_07) %>%
+        rename(q36_econ_worry = q36) %>%
         rename(q35_01_contact_close_family = q35_01) %>%
         rename(q35_03_contact_friends = q35_03) %>%
         rename(q38_alcohol = q38) %>%
@@ -310,7 +325,7 @@ print(corr_spearman)
 
 In the first set of models, we avoid potentially biased modifications, such as pairwise comparisons, which could lead to overfitting. Instead, we build five successive models in total ("blocks" in the syntax).
 
-First model (from the set of 5) uses only the demographic characteristics as predictors. Second model add the effect of the social media consumption. Third model adds lifestyle variables, such as alcohol, smoking, sport and social contacts. The fourth model further adds the variables related to self-rated health quality. Finally, the fifth model controls for the age by adding it as a covariate. The performance of each model could be seen in the output below.
+First model (from the set of 5) uses only the demographic characteristics as predictors. Second model adds the effect of the social media consumption. Third model adds lifestyle variables, such as alcohol, smoking, sport and social contacts. The fourth model further adds the variables related to self-rated health quality. Finally, the fifth model controls for the age by adding it as a covariate. The performance of each model could be seen in the output below.
 
 ```{r theory-driven regression model, warning=FALSE}
 
@@ -606,7 +621,7 @@ jmv::efa(
     bartlett = TRUE)
 ```
 
-#### d. Creation of the  Covid-related Anxiety index, step 3: Reliability Analysis of the index items
+#### d. Creation of the Covid-related Anxiety index, step 3: Reliability Analysis of the index items
 
 Secondly, we conduct a reliability analysis of the anxiety factor. We use a cutoff value of 0.7 for both McDonald's omega and Cronbach's Alpha. The scale passes this cutoff and the statistics would not be improved if any of the items were dropped.
 
@@ -691,7 +706,7 @@ jmv::descriptives(
 
 #### a. Simple mediation model (without moderator)
 
-To explore our hypothesized pathway (see H11) between social media exposure and depression, partially mediated by anxiety, we conduct a mediation analysis.
+To explore our hypothesized pathway (see H13) between social media exposure and depression, partially mediated by anxiety, we conduct a mediation analysis.
 
 ```{r simple mediation model}
 
