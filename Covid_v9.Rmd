@@ -1,16 +1,25 @@
 ---
-title: "Predictors of Depression during the Covid-19, Czech sample report v0.5"
+title: "Predictors of Depression during the Covid-19, Czech sample report v1.0"
 author: "Sarka Tesarova, Ondrej Pekacek, Alessandro Porrovecchio, Jiri Remr"
 date: "Last edited `r format (Sys.time(),'%d. %m. %Y')`"
 bibliography: bibliography.bib
 output:
   html_document: 
+    toc: yes
     theme: readable
-    toc: true
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{css, echo=FALSE}
+pre code, pre, code {
+  white-space: pre !important;
+  overflow-x: scroll !important;
+  word-break: keep-all !important;
+  word-wrap: initial !important;
+}
 ```
 
 ## 1. Study background
@@ -69,7 +78,7 @@ In order to comply with the principles of Open Science, we intend to split our a
 +-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------+------------------------------------------------------------------------------------------------------+
 | H11: Adequate level of public information about Covid-19 transmission and precautionary measures to prevent its spread (hand washing and mask wearing) is associated with **lower** levels of depression. | q20, 34_02, 34_07          | [@Wang2020; @Wang2020b]                                                                              |
 +-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------+------------------------------------------------------------------------------------------------------+
-| H12: Economic distress is associated with **higher** levels of depression.                                                                                                                                | q36                        | @Meltzer2009                                                                                         |
+| H12: Economic distress is associated with **higher** levels of depression.                                                                                                                                | q36                        | [@Meltzer2009]                                                                                       |
 +-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------+------------------------------------------------------------------------------------------------------+
 | H13: In addition to H6, we hypothesize an existence of a causal pathway leading from **social media exposure** to **depression**, which is mediated by **anxiety** and moderated by **age**.              | q02, q18_02, anxiety_index | [@Bendau2020; @Rasmussen2020; @Wheaton2021; @Vannucci2017; @Mertens2020]                             |
 +-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------+------------------------------------------------------------------------------------------------------+
@@ -86,9 +95,8 @@ The code below can be run in R or in R IDE, such as R Studio. We used R Markdown
 
 library(udpipe)
 library(MASS)
-library(medmod)
 library(lavaan)
-library(lavaanPlot)
+library(processR)
 library(wordcloud)
 library(corrplot)
 library(tidytext)
@@ -96,16 +104,11 @@ library(tidyverse)
 library(haven)
 library(jmv)
 
-#Package lavaanPlot is currently not available on CRAN, install through devtools::install_github("alishinski/lavaanPlot")
-
 #We load the original Czech dataset (in SPSS format) from a local directory.
 data <- haven::read_sav(file = "COV19_05_agroup.sav")
 
 #We also try to limit the decimals to three significant figures
 options(digits = 3)
-
-#Finally, for reproductible results, we run session_info() to see the details on the R & packages versions that were used to compile this document.
-devtools::session_info()
 ```
 
 ```{r data cleaning and wrangling}
@@ -214,11 +217,13 @@ levels(data$q18_02_soc_media_info) <- list(yes = "Sociální média", no = "0")
 
 #### b. Sample descriptive statistics: Depression index (PHQ8)
 
-The PHQ-8 dependent variable intend to determine the presence and severity of major depressive disorder. The PHQ-8 construction is standardized and based on the established methodology [@Kroenke2009]. The PHQ-8 questionnaire asks the number of days in the past 2 weeks the respondent had experienced a specific depressive symptom.
+The `PHQ8`dependent variable intend to determine the presence and severity of major depressive disorder. The PHQ-8 index construction is standardized and based on the established methodology [@Kroenke2009]. The PHQ-8 questionnaire asks the number of days in the past 2 weeks the respondent had experienced a specific depressive symptom.
 
 This variable was recoded by the international team from 8 survey items (see the [OSF project page](https://osf.io/qs7zn/?view_only=91cf62078f614f519981d19d616c5644) for the precise syntax) and is thus already present in the version of this dataset.
 
-```{r PHQ8 descriptives}
+Since we are using several linear models in this report, whose assumption is normal distribution of the residuals, we could benefit from the power transformation of our dependent variable `PHQ8` (using Yeo-Johnson function). We name this transformed variable `PHQ8_t`.
+
+```{r PHQ8 descriptives, fig.width=9}
 
 #To summarize the dependent continuous variable, we use the descriptives() function from the jmv package.
 
@@ -233,11 +238,41 @@ jmv::descriptives(
     quart = TRUE)
 ```
 
+```{r PHQ8 transformation, include=FALSE}
+# Normality transformation: finding lambda for entire model that includes PHQ8 as a dependent variable
+YJ <- car::powerTransform(lm(PHQ8 ~ q01_gender
+                             + q02_age
+                             + q03_relationship_type
+                             + q04_children 
+                             + q11_education
+                             + q18_02_soc_media_info
+                             + q20_public_info
+                             + q34_02_face_mask
+                             + q34_07_hand_washing 
+                             + q35_01_contact_close_family
+                             + q35_03_contact_friends
+                             + q38_alcohol
+                             + q40_smoking
+                             + q42_sport
+                             + q47_self_reporting_health
+                             + q48_chronic_illness
+                             + q49_health_limitations
+                             , data = data)
+                             , family = "yjPower")
+(lambdaYJ <- YJ$lambda)
+
+# Yeo-Johnson transformation of the dependent variable
+PHQ8_t <- car::yjPower(U = data$PHQ8, lambda = lambdaYJ)
+
+# Adding the newly created variable to the dataset
+data <- cbind(data, PHQ8_t)
+```
+
 #### c. Sample descriptive statistics: Demographic characteristics (Czech sample)
 
 In the next step, we asses the demographic characteristics of the respondents in the Czech sample.
 
-```{r sample demography descriptives}
+```{r sample demography descriptives, fig.width=9}
 
 #To summarize the key demographic variables, we use the descriptives() function from the jmv package.
 
@@ -262,13 +297,13 @@ jmv::descriptives(
 
 After descriptive statistics, we continue with building and fitting of the regression model based on our hypotheses.
 
-The model has one independent continuous variable - PHQ8. The only other continuous variable in the model is q02_age, which is inputted as a covariate. The rest of the variables are either categorical (both nominal and ordinal) or binary. The linreg() function from the jmv package automatically handles them as dummy variables with reference levels and it is thus not necessary to create further dummy variables prior to this analysis.
+The model has one independent continuous variable - `PHQ8`. The only other continuous variable in the model is `q02_age`, which is inputted as a covariate. The rest of the variables are either categorical (both nominal and ordinal) or binary. The `linreg()` function from the jmv package automatically handles them as dummy variables with reference levels and it is thus not necessary to create further dummy variables prior to this analysis.
 
 #### a. Overview of correlations between individual predictors and outcome
 
-As a first step in the regression model creation, we conduct a correlation analysis. Since we do not presume linearity between all of the variables, we use Spearman's rank coefficient instead of Pearson's *r**.*** The results below need to be interpreted with caution, since some of the variables are categorical (such as q03_relationship_type), without a defined order. For categorical variables, comparisons using Chi-Square test would be more appropriate, however, in this step, we are primarily looking at the relationship between the outcome (PHQ8) and the theorized predictors.
+As a first step in the regression model creation, we conduct a correlation analysis. Since we do not presume linearity between all of the variables, we use Spearman's rank coefficient instead of Pearson's *r**.*** The results below need to be interpreted with caution, since some of the variables are categorical (such as `q03_relationship_type`), without a defined order. For categorical variables, comparisons using Chi-Square test would be more appropriate, however, in this step, we are primarily looking at the relationship between the outcome (`PHQ8`) and the theorized predictors. Statistically non-significant correlations (p \> 0.05) are crossed out in the correlation matrix.
 
-```{r correlation matrix}
+```{r correlation matrix, fig.height=9, fig.width=9}
 
 #While the dataset has been already imported, the values of factor variables were changed from numerics to text strings, therefore that dataset is unsuitable for correlation analysis. To solve this, we create a parallel dataset, again renaming the key variables to a more understandable form.
 
@@ -282,6 +317,10 @@ data_corr <- data_corr %>%
               rename(q04_children = q04) %>% 
               rename(q11_education = q11) %>% 
               rename(q18_02_soc_media_info = q18_02) %>% 
+              rename(q20_public_info = q20) %>%
+              rename(q34_02_face_mask = q34_02) %>%
+              rename(q34_07_hand_washing = q34_07) %>%
+              rename(q36_econ_worry = q36) %>%
               rename(q35_01_contact_close_family = q35_01) %>% 
               rename(q35_03_contact_friends = q35_03) %>% 
               rename(q38_alcohol = q38) %>% 
@@ -291,69 +330,82 @@ data_corr <- data_corr %>%
               rename(q48_chronic_illness = q48) %>% 
               rename(q49_health_limitations = q49)
 
+data_corr <- cbind(data_corr, PHQ8_t)
+
 data_corr$q18_02_soc_media_info[is.na(data_corr$q18_02_soc_media_info)] <- 0
 
 #Dataset simplification to only the variables specified with hypotheses
 
-data_vars <- c("PHQ8", 
+data_vars <- c("PHQ8_t", 
+               "q01_gender",
                "q02_age",
-               "q01_gender", 
+               "q03_relationship_type",
                "q04_children", 
-               "q42_sport", 
-               "q40_smoking", 
-               "q38_alcohol", 
+               "q11_education", 
+               "q18_02_soc_media_info", 
+               "q20_public_info",
+               "q34_02_face_mask",
+               "q34_07_hand_washing",
                "q35_01_contact_close_family", 
                "q35_03_contact_friends", 
-               "q18_02_soc_media_info", 
-               "q03_relationship_type", 
+               "q36_econ_worry",
+               "q38_alcohol", 
+               "q40_smoking", 
+               "q42_sport", 
                "q47_self_reporting_health", 
-               "q49_health_limitations", 
-               "q11_education", 
-               "q48_chronic_illness")
+               "q48_chronic_illness",
+               "q49_health_limitations")
 
 data_corr <- data_corr[data_vars]
 
-#SPEARMAN CORRELATION
-corr_spearman <- cor(data_corr, method = "spearman", use = "complete.obs")
+res1 <- cor.mtest(data_corr, conf.level = .95)
 
-corrplot(corr_spearman, method = "color")
-
-print(corr_spearman)
+#Correlation matrix using Spearman coefficient (values with p>0.05 are crossed)
+corrplot(cor(data_corr, method = "spearman", use = "complete.obs"), method = "circle", title = "Correlation Matrix - Spearman Coefficient", type = "lower", p.mat = res1$p, sig.level = .05, mar=c(0,0,1,0))
 ```
 
 #### b. Theory derived, inductively built regression model
 
-In the first set of models, we avoid potentially biased modifications, such as pairwise comparisons, which could lead to overfitting. Instead, we build five successive models in total ("blocks" in the syntax).
+In the first set of models, we avoid potentially biased modifications, such as pairwise comparisons, which could lead to overfitting. Instead, we build four successive models in total ("blocks" in the syntax).
 
-First model (from the set of 5) uses only the demographic characteristics as predictors. Second model adds the effect of the social media consumption. Third model adds lifestyle variables, such as alcohol, smoking, sport and social contacts. The fourth model further adds the variables related to self-rated health quality. Finally, the fifth model controls for the age by adding it as a covariate. The performance of each model could be seen in the output below.
+First model uses only the demographic characteristics as predictors. Second model adds the effect of the social media consumption, virus information, economic worries and hygienic measures. Third model adds lifestyle variables, such as alcohol, smoking, sport and social contacts. The fourth model further adds the variables related to self-rated health quality. The performance of each model could be seen in the output below.
 
-```{r theory-driven regression model, warning=FALSE}
+```{r theory-driven regression model}
 
 jmv::linReg(
     data = data,
-    dep = "PHQ8",
+    dep = "PHQ8_t",
     covs = "q02_age",
-    factors = vars("q01_gender", 
+    factors = vars("q01_gender",
+                   "q03_relationship_type",
                    "q04_children", 
-                   "q42_sport", 
-                   "q40_smoking", 
-                   "q38_alcohol", 
+                   "q11_education", 
+                   "q18_02_soc_media_info", 
+                   "q20_public_info",
+                   "q34_02_face_mask",
+                   "q34_07_hand_washing",
                    "q35_01_contact_close_family", 
                    "q35_03_contact_friends", 
-                   "q18_02_soc_media_info", 
-                   "q03_relationship_type", 
+                   "q36_econ_worry",
+                   "q38_alcohol", 
+                   "q40_smoking", 
+                   "q42_sport", 
                    "q47_self_reporting_health", 
-                   "q49_health_limitations", 
-                   "q11_education", 
-                   "q48_chronic_illness"),
+                   "q48_chronic_illness",
+                   "q49_health_limitations"),
     blocks = list(
         list(
             "q01_gender",
+            "q02_age",
             "q03_relationship_type",
             "q04_children",
             "q11_education"),
         list(
-            "q18_02_soc_media_info"),
+            "q18_02_soc_media_info",
+            "q20_public_info",
+            "q34_02_face_mask",
+            "q34_07_hand_washing",
+            "q36_econ_worry"),
         list(
             "q40_smoking",
             "q42_sport",
@@ -363,9 +415,7 @@ jmv::linReg(
         list(
             "q47_self_reporting_health",
             "q48_chronic_illness",
-            "q49_health_limitations"),
-        list(
-            "q02_age")),
+            "q49_health_limitations")),
     refLevels = list(
         list(
             var="q01_gender",
@@ -373,6 +423,18 @@ jmv::linReg(
         list(
             var="q04_children",
             ref="no"),
+         list(
+            var="q20_public_info",
+            ref="no"),
+        list(
+            var="q34_02_face_mask",
+            ref="no"),
+        list(
+            var="q34_07_hand_washing",
+            ref="no"),
+        list(
+            var="q36_econ_worry",
+            ref="very_serious"),
         list(
             var="q42_sport",
             ref="no"),
@@ -419,11 +481,11 @@ jmv::linReg(
     collin = TRUE)
 ```
 
-#### c. Stepwise regression model, step 1: algorithmic selection
+#### c. Stepwise regression models, step 1: algorithmic selection
 
-As an alternative approach to the theory-derived, inductively build set of models, we choose to use the stepwise regression - combining forward with stepwise selection of the predictors. By using both of the Akaike information criterion (AIC) and Bayesian information criterion (BIC) to select the best-performing model, the algorithm from the MASS package arrives at two simpler models, compared to the 14 predictor variables selected with the previous manual approach. However, while these two models perform well with this particular sample, there is a significant chance of underperformance on the international sample, since stepwise regression is prone to overfitting.
+As an alternative approach to the theory-derived, inductively build set of models, we choose to use the stepwise regression - combining forward with stepwise selection of the predictors. By using both of the Akaike information criterion (AIC) and Bayesian information criterion (BIC) to select the best-performing model, the algorithm from the `MASS` package arrives at two simpler models, compared to the 17 predictor variables selected with the previous manual approach. However, while these two models perform well with this particular sample, there is a significant chance of underperformance on the international sample, since stepwise regression is prone to overfitting.
 
-Using AIC-ranked stepwise selection, the algorithm arrives at 9-predictor model.
+Using AIC-ranked stepwise selection, the algorithm arrives at 13-predictor model.
 
 ```{r automatic stepwise regression model AIC-selected}
 
@@ -434,7 +496,7 @@ Using AIC-ranked stepwise selection, the algorithm arrives at 9-predictor model.
 data_linreg <- data[data_vars]
 
 # Fit the full linear model using lm() function from base R
-full.model_MASS <- lm(PHQ8 ~.,
+full.model_MASS <- lm(PHQ8_t ~.,
                       data = data_linreg,
                       na.action = na.omit)
 
@@ -445,7 +507,6 @@ step.model_AIC <- stepAIC(full.model_MASS,
 
 # Summary of model based on AIC
 base::summary(step.model_AIC)
-
 ```
 
 Using BIC-ranked stepwise selection, the algorithm arrives at 7-predictor model.
@@ -462,9 +523,9 @@ step.model_BIC <- stepAIC(full.model_MASS,
 base::summary(step.model_BIC)
 ```
 
-#### d. Stepwise regression model, step 2: final AIC and BIC-driven model
+#### d. Stepwise regression models, step 2: final AIC and BIC-driven model
 
-In order to allow direct comparison with the manually-selected model, we input the chosen model (based on the AIC and BIC criterion) from the previous step into the linreg() function of the jmv package. The first, simpler model has the variables from the BIC-selected model. The second, more complex model, has variables from AIC-selected stepwise model.
+In order to allow direct comparison with the manually-selected model, we input the chosen models (based on the AIC and BIC criterion) from the previous step into the `linreg()` function of the `jmv` package. The first, simpler model has the 7 predictors from the BIC-selected model. The second, more complex model, has 6 additional variables from AIC-selected stepwise model (to a total of 13).
 
 ```{r stepwise selection-built linear model}
 
@@ -472,40 +533,57 @@ In order to allow direct comparison with the manually-selected model, we input t
 
 jmv::linReg(
     data = data,
-    dep = "PHQ8",
+    dep = "PHQ8_t",
     covs = "q02_age",
-    factors = vars("q01_gender", 
-                   "q40_smoking", 
+    factors = vars("q01_gender",
+                   "q03_relationship_type",
                    "q04_children", 
-                   "q38_alcohol", 
                    "q18_02_soc_media_info", 
-                   "q03_relationship_type", 
+                   "q20_public_info",
+                   "q34_02_face_mask",
+                   "q36_econ_worry",
+                   "q38_alcohol", 
+                   "q40_smoking", 
                    "q47_self_reporting_health", 
+                   "q48_chronic_illness",
                    "q49_health_limitations"),
     blocks = list(
         list(
-            "q02_age",
             "q01_gender",
+            "q02_age",
             "q04_children",
+            "q36_econ_worry",
+            "q18_02_soc_media_info",
             "q47_self_reporting_health",
-            "q49_health_limitations",
-            "q18_02_soc_media_info"),
+            "q49_health_limitations"),
           list(
+            "q03_relationship_type",
+            "q20_public_info",
+            "q34_02_face_mask",
             "q38_alcohol",
             "q40_smoking",
-            "q03_relationship_type")),
+            "q48_chronic_illness")),
     refLevels = list(
         list(
             var="q01_gender",
-            ref="male"),
+            ref="female"),
         list(
             var="q04_children",
+            ref="no"),
+         list(
+            var="q20_public_info",
+            ref="no"),
+        list(
+            var="q34_02_face_mask",
+            ref="no"),
+        list(
+            var="q36_econ_worry",
+            ref="very_serious"),
+        list(
+            var="q40_smoking",
             ref="yes"),
         list(
             var="q38_alcohol",
-            ref="yes"),
-        list(
-            var="q40_smoking",
             ref="yes"),
         list(
             var="q18_02_soc_media_info",
@@ -518,7 +596,10 @@ jmv::linReg(
             ref="very_bad"),
         list(
             var="q49_health_limitations",
-            ref="limits")),
+            ref="limits"),
+        list(
+            var="q48_chronic_illness",
+            ref="yes")),
     r2Adj = TRUE,
     aic = TRUE,
     bic = TRUE,
@@ -538,7 +619,9 @@ jmv::linReg(
 
 Aside from the regression model, we intend to explore the mediating role of anxiety between the consumption of social media and depression through a mediation/moderation analysis (in section 5).
 
-In this section, we aim to construct an anxiety index from several survey items. As a first step, we select the survey items, which should be the manifestation of the latent factor of anxiety.
+Unlike as is in the case of PHQ-8 index as a measure of depression, this survey does not have a standardized measure of anxiety. We therefore try to proceed inductively, using Covid-19-related survey items that could represent anxiety.
+
+Therefore, in this section, we aim to construct an anxiety index from several survey items using factor analysis. As a first step, we select the survey items, which should be the manifestation of the latent factor of anxiety.
 
 These survey items are:
 
@@ -562,9 +645,9 @@ These survey items are:
 
 #### b. Creation of the Covid-related Anxiety index, step 2: anxiety items descriptives and pre-processing
 
-After the selection, we analyze these survey items with a set of descriptive statistics. To follow the established principles pertaining to the factor analyses, we also split the sample into two randomly chosen halves. The first half of the data set will be used for the Exploratory Factor Analysis, while the second half will be used by the Reliability and Confirmatory Factor Analyses.
+After the initial selection, we analyze these survey items with a set of descriptive statistics. To follow the established principles pertaining to the factor analyses, we also split the sample into two randomly chosen halves [@Cabrera-Nguyen2010]. The first half of the data set will be used for the Exploratory Factor Analysis, while the second half will be used by the Reliability and Confirmatory Factor Analyses (all functions from `jmv` package).
 
-```{r anxiety items descriptives}
+```{r anxiety items descriptives, fig.width=9}
 
 jmv::descriptives(
     data = data,
@@ -579,9 +662,6 @@ jmv::descriptives(
     min = FALSE,
     max = FALSE)
 
-#Imputation of missing variables
-
-
 # We also split the sample into two halfs. The "training" half, on which we conduct the EFA analysis and "test" part, on which we test our construct through CFA.
 
 set.seed(2021)
@@ -595,9 +675,9 @@ In the next step, we conduct an Exploratory Factor Analysis on these variables.
 
 In line with best practices, we conduct the assumption checks (KMO and Bartlett's Sphericity tests), set a cutoff for eigenvalue of \>1 and hide factor loading below 0.4.
 
-The result is therefore a one-factor construct, which includes all of the variables, except for the "q33_04_anxiety_change_employment", which does not seem to be a good fit for the manifestation of anxiety within this group of variables.
+The result is therefore a one-factor construct, which includes all of the variables, except for the `q33_04_anxiety_change_employment`, which does not seem to be a good fit for the manifestation of anxiety within this group of variables. We will exclude this variable in the next step.
 
-```{r anxiety items Exploratory Factor Analysis}
+```{r anxiety items Exploratory Factor Analysis, fig.width=9}
 
 #To conduct the EFA, we use the efa() function from the jmv package on the "train" data set (as opposed to the "test" dataset used for CFA)
 
@@ -623,7 +703,7 @@ jmv::efa(
 
 #### d. Creation of the Covid-related Anxiety index, step 3: Reliability Analysis of the index items
 
-Secondly, we conduct a reliability analysis of the anxiety factor. We use a cutoff value of 0.7 for both McDonald's omega and Cronbach's Alpha. The scale passes this cutoff and the statistics would not be improved if any of the items were dropped.
+Secondly, we conduct a Reliability Analysis of the anxiety factor. We use a cutoff value of 0.7 for both McDonald's Omega and Cronbach's Alpha. The scale passes this cutoff and the statistics would not be improved if any of the items were dropped.
 
 ```{r anxiety index reliability analysis}
 
@@ -672,9 +752,9 @@ jmv::cfa(
 
 #### f. Creation of Covid-related Anxiety Index , step 5: creation and descriptives
 
-After Reliability analysis and CFA, we combine the multiple variables into one named anxiety_index. We also render visualization and descriptive statistics for the new anxiety_index variable.
+After Reliability Analysis and CFA, we combine the multiple variables into one named `anxiety_index`. We also render visualization and descriptive statistics for the new `anxiety_index` variable.
 
-```{r anxiety index creation and descriptives}
+```{r anxiety index creation and descriptives, fig.width=9}
 
 #Creating the anxiety index, consisting of the average the values of the multiple variables selected through factor analysis to represent the underlying construct of anxiety.
 
@@ -704,84 +784,74 @@ jmv::descriptives(
 
 ## 5. Simplified age-moderated & anxiety-mediated model
 
-#### a. Simple mediation model (without moderator)
+#### a. Moderated mediation model conceptual diagram and pre-processing
 
-To explore our hypothesized pathway (see H13) between social media exposure and depression, partially mediated by anxiety, we conduct a mediation analysis.
+To explore our hypothesized pathway (see H13) between social media exposure and depression, partially mediated by anxiety and moderated by age (which is presumed to influence both the social media exposure and the depression pathway), we conduct a mediation-moderation analysis using the `lavaan` package, conceptually structured as a [Hayes model nr. 8.](https://osf.io/29c8p/download)
 
-```{r simple mediation model}
+```{r path diagram Hayes model 8, fig.width=9}
+# Conceptual diagram
+labels_H8 <- list(X="Soc. Media",M="Anxiety",Y="Depression", W="Age")
+pmacroModel(8,labels=labels_H8)
+```
 
-#To create the mediation model, we use the med() function from the medmod package.Before running the model, we need to transform the social media string dummy (yes/no) back to its numeric form.
+```{r mediation pre-processing}
+
+#Before running the model, we need to transform the social media string dummy (yes/no) back to its numeric form.
 
 levels(data$q18_02_soc_media_info) <- list("1" = "yes", "2" = "no")
 data$q18_02_soc_media_info <- as.numeric(as.character(data$q18_02_soc_media_info))
 
-# Centering continuous variables (without scaling)
+# Centering continuous variables with scaling
 data <- data %>% 
-        mutate(PHQ8.c = scale(PHQ8, scale = FALSE)) %>% 
-        mutate(q02_age.c = scale(q02_age, scale = FALSE)) %>%
+        mutate(PHQ8.c = scale(PHQ8_t, scale = TRUE)) %>% 
+        mutate(q02_age.c = scale(q02_age, scale = TRUE)) %>%
         filter(!is.na(anxiety_index)) %>%
-        mutate(anxiety_index.c = scale(anxiety_index, scale = FALSE)) %>%
+        mutate(anxiety_index.c = scale(anxiety_index, scale = TRUE)) %>%
         mutate(q18_02_soc_media_info.c = scale(q18_02_soc_media_info, 
-                                               scale = FALSE))
-
-#Seed for reproducibility of the results (due to bootstrap)
-set.seed(2021)
-
-medmod::med(
-    data = data,
-    dep = "PHQ8.c",
-    med = "anxiety_index.c",
-    pred = "q18_02_soc_media_info.c",
-    estMethod = "bootstrap",
-    bootstrap = 1000,
-    ci = TRUE,
-    pm = TRUE,
-    paths = TRUE,
-    label = TRUE)
+                                               scale = TRUE))
 ```
 
-#### b. Complex age-moderated mediation model
+#### b. Moderated mediation model specification and results
 
-To account for the significant effect of age, which is presumed to influence both the social media exposure and the depression pathway, we build a complex model using the lavaan package, where age acts as an additional moderator.
+In the second step, we specify the key pathways and run the analysis, while bootstrapping the confidence intervals.
 
-```{r moderated mediation model}
+```{r Hayes model 8, warning=FALSE}
 
-#Mediation analysis (path analysis framework, SEM) using lavaan package.
-
-#For reproducibility of results (because we use bootstrap)
-set.seed(2021)
+#Mediation-moderation analysis (path analysis framework, SEM) using lavaan package.
 
 #First, we specify the pathways
 spec_mod <- "
 #Regressions
-anxiety_index.c ~ a1*q18_02_soc_media_info.c + a2*q02_age.c + a3*q18_02_soc_media_info.c:q02_age.c
-PHQ8.c ~ cdash1*q18_02_soc_media_info.c + cdash2*q02_age.c + cdash3*q18_02_soc_media_info.c:q02_age.c + b1*anxiety_index.c
+anxiety_index.c~a1*q18_02_soc_media_info.c+a2*q02_age.c+a3*q18_02_soc_media_info.c:q02_age.c
+PHQ8.c~c1*q18_02_soc_media_info.c+c2*q02_age.c+c3*q18_02_soc_media_info.c:q02_age.c+b*anxiety_index.c
 
-#Mean of centered age moderator (for use in simple slopes)
+#Mean of centered age moderator
 q02_age.c ~ q02_age.c.mean*1
 
-#Variance of centered age moderator (for use in simple slopes)
+#Variance of centered age moderator
 q02_age.c ~~ q02_age.c.var*q02_age.c
 
-#Indirect effects conditional on moderator (a1 + a3*ModValue)*b1
-indirect.SDbelow := (a1 + a3*(q02_age.c.mean-sqrt(q02_age.c.var)))*b1
-indirect.SDabove := (a1 + a3*(q02_age.c.mean+sqrt(q02_age.c.var)))*b1
+index.mod.med :=a3*b
+indirect :=(a1+a3*q02_age.c.mean)*(b)
+direct :=c1+c3*q02_age.c.mean
+total := direct + indirect
+prop.mediated := indirect / total
+CE.XonM :=a1+a3*q02_age.c.mean
 
-#Direct effects conditional on moderator (cdash1 + cdash3*ModValue)
-direct.SDbelow := cdash1 + cdash3*(q02_age.c.mean-sqrt(q02_age.c.var)) 
-direct.SDabove := cdash1 + cdash3*(q02_age.c.mean+sqrt(q02_age.c.var))
-
-#Total effects conditional on moderator
-total.SDbelow := direct.SDbelow + indirect.SDbelow
-total.SDabove := direct.SDabove + indirect.SDabove
-
-#Proportion mediated conditional on moderator
-prop.mediated.SDbelow := indirect.SDbelow / total.SDbelow
-prop.mediated.SDabove := indirect.SDabove / total.SDabove
-
-#Index of moderated mediation
-index.mod.med := a3*b1
+CE.XonM.below :=a1+a3*(q02_age.c.mean-sqrt(q02_age.c.var))
+CE.XonM.above :=a1+a3*(q02_age.c.mean+sqrt(q02_age.c.var))
+indirect.below :=(a1+a3*(q02_age.c.mean-sqrt(q02_age.c.var)))*(b)
+indirect.above :=(a1+a3*(q02_age.c.mean+sqrt(q02_age.c.var)))*(b)
+direct.below:=c1+c3*(q02_age.c.mean-sqrt(q02_age.c.var))
+direct.above:=c1+c3*(q02_age.c.mean+sqrt(q02_age.c.var))
+total.below := direct.below + indirect.below
+total.above := direct.above + indirect.above
+prop.mediated.below := indirect.below / total.below
+prop.mediated.above := indirect.above / total.above
 "
+
+#For reproducibility of results (because we use bootstrap)
+set.seed(2021)
 
 #Secondly, we fit/estimate the model and we use bootstrap for robustness.
 fit_mod <- lavaan::sem(model = spec_mod,
@@ -791,17 +861,15 @@ fit_mod <- lavaan::sem(model = spec_mod,
 
 #Finally, we summarize the model
 lavaan::summary(fit_mod, 
-                fit.measures = FALSE, 
                 rsquare = TRUE, 
-                standardize = TRUE)
+                ci = TRUE)
 
-#We can also vizalize the path diagram with lavaanPlot package
-lavaanPlot(model = fit_mod)
+estimatesTable(fit_mod)
 ```
 
 ## 6. Visualizing the qualitative responses using Word Clouds
 
-Part of the survey (q50) was dedicated to the comments of the respondents on their situation. To visualize this textual data, we use two pairs of two word clouds.
+Part of the survey, `q50`, was dedicated to the comments of the respondents on their situation. To visualize this textual data, we use two pairs of two word clouds. Unfortunately, this survey item was used only in the Czech version of the survey.
 
 First Word Cloud pair visualizes the most common tokens and lemma (size and color represents frequency of the word). Second Word Cloud pair uses sentiment analysis technique to create two distinct word clouds (using only tokens, not lemma), one visualizes only words with positive emotional sentiment, while the second only words with negative sentiment.
 
