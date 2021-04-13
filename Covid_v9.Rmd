@@ -361,7 +361,7 @@ data_corr <- data_corr[data_vars]
 res1 <- cor.mtest(data_corr, conf.level = .95)
 
 #Correlation matrix using Spearman coefficient (values with p>0.05 are crossed)
-corrplot(cor(data_corr, method = "spearman", use = "complete.obs"), method = "circle", title = "Correlation Matrix - Spearman Coefficient", type = "lower", p.mat = res1$p, sig.level = .05, mar=c(0,0,1,0))
+corrplot(cor(data_corr, method = "spearman", use = "complete.obs"), method = "circle", title = "Correlation Matrix - Spearman Coefficient", type = "lower", p.mat = res1$p, sig.level = .05, mar = c(0,0,1,0))
 ```
 
 #### b. Theory derived, inductively built regression model
@@ -418,56 +418,56 @@ jmv::linReg(
             "q49_health_limitations")),
     refLevels = list(
         list(
-            var="q01_gender",
-            ref="female"),
+            var = "q01_gender",
+            ref = "female"),
         list(
-            var="q04_children",
-            ref="no"),
+            var = "q04_children",
+            ref = "no"),
          list(
-            var="q20_public_info",
-            ref="no"),
+            var = "q20_public_info",
+            ref = "no"),
         list(
-            var="q34_02_face_mask",
-            ref="no"),
+            var = "q34_02_face_mask",
+            ref = "no"),
         list(
-            var="q34_07_hand_washing",
-            ref="no"),
+            var = "q34_07_hand_washing",
+            ref = "no"),
         list(
-            var="q36_econ_worry",
-            ref="very_serious"),
+            var = "q36_econ_worry",
+            ref = "very_serious"),
         list(
-            var="q42_sport",
-            ref="no"),
+            var = "q42_sport",
+            ref = "no"),
         list(
-            var="q40_smoking",
-            ref="yes"),
+            var = "q40_smoking",
+            ref = "yes"),
         list(
-            var="q38_alcohol",
-            ref="yes"),
+            var = "q38_alcohol",
+            ref = "yes"),
         list(
-            var="q35_01_contact_close_family",
-            ref="1"),
+            var = "q35_01_contact_close_family",
+            ref = "1"),
         list(
-            var="q35_03_contact_friends",
-            ref="1"),
+            var = "q35_03_contact_friends",
+            ref = "1"),
         list(
-            var="q18_02_soc_media_info",
-            ref="yes"),
+            var = "q18_02_soc_media_info",
+            ref = "yes"),
         list(
-            var="q03_relationship_type",
-            ref="single"),
+            var = "q03_relationship_type",
+            ref = "single"),
         list(
-            var="q47_self_reporting_health",
-            ref="very_bad"),
+            var = "q47_self_reporting_health",
+            ref = "very_bad"),
         list(
-            var="q49_health_limitations",
-            ref="limits"),
+            var = "q49_health_limitations",
+            ref = "limits"),
         list(
-            var="q11_education",
-            ref="unfin_element"),
+            var = "q11_education",
+            ref = "unfin_element"),
         list(
-            var="q48_chronic_illness",
-            ref="yes")),
+            var = "q48_chronic_illness",
+            ref = "yes")),
     r2Adj = TRUE,
     aic = TRUE,
     bic = TRUE,
@@ -565,41 +565,41 @@ jmv::linReg(
             "q48_chronic_illness")),
     refLevels = list(
         list(
-            var="q01_gender",
-            ref="female"),
+            var = "q01_gender",
+            ref = "female"),
         list(
-            var="q04_children",
-            ref="no"),
+            var = "q04_children",
+            ref = "no"),
          list(
-            var="q20_public_info",
-            ref="no"),
+            var = "q20_public_info",
+            ref = "no"),
         list(
-            var="q34_02_face_mask",
-            ref="no"),
+            var = "q34_02_face_mask",
+            ref = "no"),
         list(
-            var="q36_econ_worry",
-            ref="very_serious"),
+            var = "q36_econ_worry",
+            ref = "very_serious"),
         list(
-            var="q40_smoking",
-            ref="yes"),
+            var = "q40_smoking",
+            ref = "yes"),
         list(
-            var="q38_alcohol",
-            ref="yes"),
+            var = "q38_alcohol",
+            ref = "yes"),
         list(
-            var="q18_02_soc_media_info",
-            ref="yes"),
+            var = "q18_02_soc_media_info",
+            ref = "yes"),
         list(
-            var="q03_relationship_type",
-            ref="single"),
+            var = "q03_relationship_type",
+            ref = "single"),
         list(
-            var="q47_self_reporting_health",
-            ref="very_bad"),
+            var = "q47_self_reporting_health",
+            ref = "very_bad"),
         list(
-            var="q49_health_limitations",
-            ref="limits"),
+            var = "q49_health_limitations",
+            ref = "limits"),
         list(
-            var="q48_chronic_illness",
-            ref="yes")),
+            var = "q48_chronic_illness",
+            ref = "yes")),
     r2Adj = TRUE,
     aic = TRUE,
     bic = TRUE,
@@ -734,8 +734,8 @@ jmv::cfa(
     data = test_set,
     factors = list(
         list(
-            label="Anxiety",
-            vars=c(
+            label = "Anxiety",
+            vars = c(
                 "q30_anxiety_infection_covid",
                 "q31_anxiety_infection_friends",
                 "q33_01_anxiety_situation",
@@ -790,8 +790,8 @@ To explore our hypothesized pathway (see H13) between social media exposure and 
 
 ```{r path diagram Hayes model 8, fig.width=9}
 # Conceptual diagram
-labels_H8 <- list(X="Soc. Media",M="Anxiety",Y="Depression", W="Age")
-pmacroModel(8,labels=labels_H8)
+labels_H8 <- list(X = "Soc. Media",M = "Anxiety",Y = "Depression", W = "Age")
+pmacroModel(8,labels = labels_H8)
 ```
 
 ```{r mediation pre-processing}
