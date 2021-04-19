@@ -7,6 +7,10 @@ output:
   html_document: 
     toc: yes
     theme: readable
+    code_folding: hide
+    code_download: true
+    includes:
+      in_header: header.html
 ---
 
 ```{r setup, include=FALSE}
@@ -19,6 +23,8 @@ pre code, pre, code {
   overflow-x: scroll !important;
   word-break: keep-all !important;
   word-wrap: initial !important;
+  max-height: 600px;
+  overflow-y: auto;
 }
 ```
 
@@ -223,7 +229,7 @@ This variable was recoded by the international team from 8 survey items (see the
 
 Since we are using several linear models in this report, whose assumption is normal distribution of the residuals, we could benefit from the power transformation of our dependent variable `PHQ8` (using Yeo-Johnson function). We name this transformed variable `PHQ8_t`.
 
-```{r PHQ8 descriptives, fig.width=9}
+```{r PHQ8 descriptives, comment = ""}
 
 #To summarize the dependent continuous variable, we use the descriptives() function from the jmv package.
 
@@ -272,7 +278,7 @@ data <- cbind(data, PHQ8_t)
 
 In the next step, we asses the demographic characteristics of the respondents in the Czech sample.
 
-```{r sample demography descriptives, fig.width=9}
+```{r sample demography descriptives, comment = ""}
 
 #To summarize the key demographic variables, we use the descriptives() function from the jmv package.
 
@@ -370,7 +376,7 @@ In the first set of models, we avoid potentially biased modifications, such as p
 
 First model uses only the demographic characteristics as predictors. Second model adds the effect of the social media consumption, virus information, economic worries and hygienic measures. Third model adds lifestyle variables, such as alcohol, smoking, sport and social contacts. The fourth model further adds the variables related to self-rated health quality. The performance of each model could be seen in the output below.
 
-```{r theory-driven regression model}
+```{r theory-driven regression model, comment = ""}
 
 jmv::linReg(
     data = data,
@@ -487,7 +493,7 @@ As an alternative approach to the theory-derived, inductively build set of model
 
 Using AIC-ranked stepwise selection, the algorithm arrives at 13-predictor model.
 
-```{r automatic stepwise regression model AIC-selected}
+```{r automatic stepwise regression model AIC-selected, comment = ""}
 
 #We are using the MASS package, which contains stepAIC() function for stepwise regression model selection
 
@@ -511,7 +517,7 @@ base::summary(step.model_AIC)
 
 Using BIC-ranked stepwise selection, the algorithm arrives at 7-predictor model.
 
-```{r automatic stepwise regression model BIC-selected}
+```{r automatic stepwise regression model BIC-selected, comment = ""}
 
 # Stepwise regression model using MASS package, ranks on BIC
 step.model_BIC <- stepAIC(full.model_MASS, 
@@ -527,7 +533,7 @@ base::summary(step.model_BIC)
 
 In order to allow direct comparison with the manually-selected model, we input the chosen models (based on the AIC and BIC criterion) from the previous step into the `linreg()` function of the `jmv` package. The first, simpler model has the 7 predictors from the BIC-selected model. The second, more complex model, has 6 additional variables from AIC-selected stepwise model (to a total of 13).
 
-```{r stepwise selection-built linear model}
+```{r stepwise selection-built linear model, comment = ""}
 
 #To construct this regression model, we use the linReg() function from the jmv package.
 
@@ -647,7 +653,7 @@ These survey items are:
 
 After the initial selection, we analyze these survey items with a set of descriptive statistics. To follow the established principles pertaining to the factor analyses, we also split the sample into two randomly chosen halves [@Cabrera-Nguyen2010]. The first half of the data set will be used for the Exploratory Factor Analysis, while the second half will be used by the Reliability and Confirmatory Factor Analyses (all functions from `jmv` package).
 
-```{r anxiety items descriptives, fig.width=9}
+```{r anxiety items descriptives, comment = ""}
 
 jmv::descriptives(
     data = data,
@@ -677,7 +683,7 @@ In line with best practices, we conduct the assumption checks (KMO and Bartlett'
 
 The result is therefore a one-factor construct, which includes all of the variables, except for the `q33_04_anxiety_change_employment`, which does not seem to be a good fit for the manifestation of anxiety within this group of variables. We will exclude this variable in the next step.
 
-```{r anxiety items Exploratory Factor Analysis, fig.width=9}
+```{r anxiety items Exploratory Factor Analysis, comment = ""}
 
 #To conduct the EFA, we use the efa() function from the jmv package on the "train" data set (as opposed to the "test" dataset used for CFA)
 
@@ -705,7 +711,7 @@ jmv::efa(
 
 Secondly, we conduct a Reliability Analysis of the anxiety factor. We use a cutoff value of 0.7 for both McDonald's Omega and Cronbach's Alpha. The scale passes this cutoff and the statistics would not be improved if any of the items were dropped.
 
-```{r anxiety index reliability analysis}
+```{r anxiety index reliability analysis, comment = ""}
 
 #To conduct the reliability analysis, we use the reliability() function from the jmv package on the "test" data set (as opposed to the "train" dataset used for EFA)
 
@@ -726,7 +732,7 @@ jmv::reliability(
 
 According to the [commonly used cut-offs](https://www.cscu.cornell.edu/news/Handouts/SEM_fit.pdf) for estimating CFA fit, we report that the chi-square is 159 (p \< 0.001) and the Standardized Root Mean Square Residual is 0.0521 (cut-off SRMR \<0.08), which indicates a good fit. However, Root Mean Square Error of Approximation (90% CI) is 0.130-0.171 (cut-off \< 0.08) and the Comparative Fit Index is 0.887 (cut-off ≥.90), which does not indicate a good-fit.
 
-```{r anxiety index Confirmatory Factor Analysis}
+```{r anxiety index Confirmatory Factor Analysis, comment = ""}
 
 #To conduct the CFA, we use the cfa() function from the jmv package on the "test" data set (as opposed to the "train" dataset used for EFA)
 
@@ -754,7 +760,7 @@ jmv::cfa(
 
 After Reliability Analysis and CFA, we combine the multiple variables into one named `anxiety_index`. We also render visualization and descriptive statistics for the new `anxiety_index` variable.
 
-```{r anxiety index creation and descriptives, fig.width=9}
+```{r anxiety index creation and descriptives, comment = ""}
 
 #Creating the anxiety index, consisting of the average the values of the multiple variables selected through factor analysis to represent the underlying construct of anxiety.
 
@@ -788,10 +794,10 @@ jmv::descriptives(
 
 To explore our hypothesized pathway (see H13) between social media exposure and depression, partially mediated by anxiety and moderated by age (which is presumed to influence both the social media exposure and the depression pathway), we conduct a mediation-moderation analysis using the `lavaan` package, conceptually structured as a [Hayes model nr. 8.](https://osf.io/29c8p/download)
 
-```{r path diagram Hayes model 8, fig.width=9}
+```{r path diagram Hayes model 8, fig.height=5, fig.width=9}
 # Conceptual diagram
-labels_H8 <- list(X = "Soc. Media",M = "Anxiety",Y = "Depression", W = "Age")
-pmacroModel(8,labels = labels_H8)
+labels_H8 <- list(X = "Social Media",M = "Anxiety",Y = "Depression", W = "Age")
+pmacroModel(8,labels = labels_H8, xmargin = 0, rady = 0.05, radx = 0.08, ylim = c(0.35,1))
 ```
 
 ```{r mediation pre-processing}
@@ -815,7 +821,7 @@ data <- data %>%
 
 In the second step, we specify the key pathways and run the analysis, while bootstrapping the confidence intervals.
 
-```{r Hayes model 8, warning=FALSE}
+```{r Hayes model 8, warning=FALSE, comment = ""}
 
 #Mediation-moderation analysis (path analysis framework, SEM) using lavaan package.
 
@@ -862,7 +868,8 @@ fit_mod <- lavaan::sem(model = spec_mod,
 #Finally, we summarize the model
 lavaan::summary(fit_mod, 
                 rsquare = TRUE, 
-                ci = TRUE)
+                ci = TRUE,
+                fit.measures = TRUE)
 
 estimatesTable(fit_mod)
 ```
@@ -924,7 +931,7 @@ set.seed(2021)
 tokens_clean %>% with(wordcloud(word, 
                                 n, 
                                 random.order = FALSE,
-                                scale = c(7,.5), 
+                                scale = c(6,.5), 
                                 min.freq = 1, 
                                 max.words = 50, 
                                 colors = palette))
@@ -993,8 +1000,8 @@ set.seed(5471)
 tokens_sentiment_positive %>% with(wordcloud(word,
                                              n, 
                                              random.order = FALSE, 
-                                             scale = c(5,.5), 
-                                             max.words = 50,
+                                             scale = c(5,5), 
+                                             max.words = 26,
                                              min.freq = 1,
                                              colors = palette, 
                                              random.color = TRUE))
@@ -1012,8 +1019,8 @@ set.seed(5471)
 tokens_sentiment_negative %>% with(wordcloud(word,
                                              n, 
                                              random.order = FALSE, 
-                                             scale = c(3,.5), 
-                                             max.words = 50, 
+                                             scale = c(5,5), 
+                                             max.words = 26, 
                                              min.freq = 1,
                                              colors = palette, 
                                              random.color = TRUE))
