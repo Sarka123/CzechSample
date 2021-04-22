@@ -730,7 +730,7 @@ jmv::reliability(
 
 #### e. Creation of the Covid-related Anxiety index, step 4: Confirmatory Factor Analysis of the index items
 
-According to the [commonly used cut-offs](https://www.cscu.cornell.edu/news/Handouts/SEM_fit.pdf) for estimating CFA fit, we report that the chi-square is 159 (p \< 0.001) and the Standardized Root Mean Square Residual is 0.0521 (cut-off SRMR \<0.08), which indicates a good fit. However, Root Mean Square Error of Approximation (90% CI) is 0.130-0.171 (cut-off \< 0.08) and the Comparative Fit Index is 0.887 (cut-off ≥.90), which does not indicate a good-fit.
+According to the [commonly used cut-offs](https://www.cscu.cornell.edu/news/Handouts/SEM_fit.pdf) for estimating CFA fit, we report that the Standardized Root Mean Square Residual is 0.0521 (cut-off SRMR \<0.08), which indicates a good fit. However, Root Mean Square Error of Approximation (90% CI) is 0.130-0.171 (cut-off \< 0.08), the Comparative Fit Index is 0.887 (cut-off CFI ≥.90), and the chi-square test value is 159 (p \< 0.001), which does not indicate a good-fit.
 
 ```{r anxiety index Confirmatory Factor Analysis, comment = ""}
 
