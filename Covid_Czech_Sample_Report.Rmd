@@ -128,16 +128,17 @@ The code below can be run in R or in R IDE, such as R Studio. We used R Markdown
 # The following packages might need to be installed onto your version 
 # of R prior to the running of the code below.
 
-library(udpipe)
-library(MASS)
-library(lavaan)
-library(processR)
-library(wordcloud)
-library(corrplot)
-library(tidytext)
-library(tidyverse)
-library(haven)
-library(jmv)
+# Package names
+packages <- c("udpipe", "MASS", "lavaan", "processR", "wordcloud", "corrplot", "tidytext", "tidyverse", "haven", "jmv", "Hmisc")
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# Packages loading
+invisible(lapply(packages, library, character.only = TRUE))
 
 # We load the original Czech dataset (in SPSS format) from a local directory.
 data <- zap_labels(haven::read_sav(file = "COV19_05_agroup.sav"))
@@ -146,7 +147,9 @@ data <- zap_labels(haven::read_sav(file = "COV19_05_agroup.sav"))
 data_corr <- data
 
 # We also try to limit the decimals to three significant figures
-options(digits = 3)
+options(digits = 3, scipen = 999)
+
+
 ```
 
 ```{r data cleaning and wrangling}
@@ -270,7 +273,8 @@ descriptives <- jmv::descriptives(
     median = FALSE,
     range = TRUE,
     sd = TRUE,
-    quart = TRUE)
+    pc = TRUE)
+
 ```
 
 ### PHQ8 results table {.tabset .tabset-pills}
@@ -309,7 +313,7 @@ YJ <- car::powerTransform(lm(PHQ8 ~ q01_gender
                              + q49_health_limitations
                              , data = data)
                              , family = "yjPower")
-(lambdaYJ <- YJ$lambda)
+lambdaYJ <- YJ$lambda
 
 # Yeo-Johnson transformation of the dependent variable
 PHQ8_t <- car::yjPower(U = data$PHQ8, lambda = lambdaYJ)
@@ -855,7 +859,7 @@ jmv::cfa(
     corRes = TRUE)
 ```
 
-## Creation of Covid-19 concern index, step 5: creation and descriptives
+## Creation of Covid-19 concern index, step 5: creation, descriptives and updated correlation plot
 
 After Reliability Analysis and CFA, we combine the multiple variables into one named `concern_index`. We also render visualization and descriptive statistics for the new `concern_index` variable.
 
@@ -874,6 +878,7 @@ concern_index <- apply(cbind(data$q30_concern_infection_covid,
 #Adding the vector as an column to the existing dataset.
 
 data <- cbind(data, concern_index)
+data_corr <- cbind(data_corr, concern_index)
 
 #To summarize the concern_index variable, we use the descriptives() 
 # function from the jmv package.
@@ -884,9 +889,33 @@ anx_index_descriptives <- jmv::descriptives(
                                             vars = "concern_index",
                                             sd = TRUE,
                                             median = FALSE,
-                                            quart = TRUE,
+                                            pc = TRUE,
                                             range = TRUE,
                                             box = TRUE)
+
+# Function to get the result from the correlation matrix into a data frame
+flattenCorrMatrix <- function(cormat, pmat) {
+  ut <- upper.tri(cormat)
+  data.frame(
+    row = rownames(cormat)[row(cormat)[ut]],
+    column = rownames(cormat)[col(cormat)[ut]],
+    cor = (cormat)[ut],
+    p = pmat[ut]
+    )
+}
+
+#Correlation matrix using Spearman coefficient 
+corr_mtx <- rcorr(as.matrix(data_corr), type = "spearman")
+ 
+# Selecting only significant correlates for PHQ8 (values with p>0.05 are excluded)
+flattenCorrMatrix(corr_mtx$r, corr_mtx$P) %>% filter(p <= 0.05,
+                                                     column %in% c("PHQ8_t")) %>% 
+                                              arrange(desc(abs(cor)))
+
+# Selecting only significant correlates for concern index (values with p>0.05 are excluded)
+flattenCorrMatrix(corr_mtx$r, corr_mtx$P) %>% filter(p <= 0.05,
+                                                     column %in% c("concern_index")) %>% 
+                                              arrange(desc(abs(cor)))
 ```
 
 ### Covid-19 concern index results {.tabset .tabset-pills}
